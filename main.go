@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 // SuffixTreeNode is a node in the suffix tree
@@ -40,12 +41,12 @@ func BuildSuffixTree(text string) *SuffixTreeNode {
 }
 
 type Stack struct {
-    data []interface{}
+    data []*SuffixTreeNode
 }
 
 func NewStack() *Stack {
     return &Stack{
-        data: make([]interface{}, 0),
+        data: make([]*SuffixTreeNode, 0),
     }
 }
 
@@ -53,11 +54,15 @@ func (s *Stack) Len() int {
     return len(s.data)
 }
 
-func (s *Stack) Push(value interface{}) {
+func (s *Stack) Push(value *SuffixTreeNode) {
     s.data = append(s.data, value)
 }
 
-func (s *Stack) Pop() interface{} {
+func (s *Stack) PushSlice(values []*SuffixTreeNode) {
+    s.data = append(s.data, values...)
+}
+
+func (s *Stack) Pop() *SuffixTreeNode {
     back := s.data[len(s.data) - 1]
     s.data = s.data[:len(s.data) - 1]
     return back
@@ -69,19 +74,16 @@ func FindLongestRepeatingSubstring(text string) string {
 	maxLength := 0
 	resultString := ""
 
-	stack := make([]*SuffixTreeNode, 0, 10)
-	stack = append(stack, tree)
-    stackLen := len(stack)
-	for stackLen != 0 {
-        currNode := stack[len(stack) - 1]
-        stack = stack[:len(stack) - 1]
+    stack := NewStack()
+    stack.Push(tree)
+	for stack.Len() != 0 {
+        currNode := stack.Pop()
 		keys := currNode.Keys()
 		if len(keys) > 1 {
 			maxLength = max(maxLength, len(keys))
 			resultString = text[:maxLength]
 		}
-        stack = append(stack, keys...)
-        stackLen = len(stack)
+        stack.PushSlice(keys)
 	}
 
 	return resultString
@@ -100,8 +102,11 @@ func main() {
 	str := "abcabcab"
 
 	// Call FindLongestRepeatingSubstring function to find the longest repeating substring
+    timeStart := time.Now()
 	longestSubstr := FindLongestRepeatingSubstring(str)
+    elapsed := time.Since(timeStart)
 
 	// Print the result
 	fmt.Println("The longest repeating substring is:", longestSubstr) // abc
+    fmt.Printf("Calculated in %s\n", elapsed)
 }
