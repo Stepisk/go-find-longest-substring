@@ -1,86 +1,107 @@
 package main
 
 import (
- "fmt"
- "strings"
+	"fmt"
 )
 
 // SuffixTreeNode is a node in the suffix tree
 type SuffixTreeNode struct {
- children map[rune]*SuffixTreeNode
- suffix   string
+	children map[rune]*SuffixTreeNode
 }
 
 // NewSuffixTreeNode creates a new suffix tree node
 func NewSuffixTreeNode() *SuffixTreeNode {
- return &SuffixTreeNode{
-  children: make(map[rune]*SuffixTreeNode),
- }
+	return &SuffixTreeNode{
+		children: make(map[rune]*SuffixTreeNode),
+	}
 }
 
-// AddSuffix adds a suffix to the suffix tree
-func (stn *SuffixTreeNode) AddSuffix(suffix string) {
- if len(suffix) == 0 {
-  return
- }
+func (stn *SuffixTreeNode) Keys() []*SuffixTreeNode {
+    keys := make([]*SuffixTreeNode, 0, len(stn.children))
+    for _, key := range stn.children {
+        keys = append(keys, key)
+    }
+    return keys
+}
 
- // Get the first character of the suffix and see if it exists in the children of this node
- firstChar := rune(suffix[0])
- child, ok := stn.children[firstChar]
+func BuildSuffixTree(text string) *SuffixTreeNode {
+	tree := NewSuffixTreeNode()
+	for i := 0; i < len(text); i++ {
+		substring := text[i:]
+		node := tree
+		for _, letter := range substring {
+			if _, ok := node.children[letter]; !ok {
+				node.children[letter] = NewSuffixTreeNode()
+			}
+			node = node.children[letter]
+		}
+	}
+	return tree
+}
 
- // If not, create a new node for it and add it as a child of this node
- if !ok {
-  child = NewSuffixTreeNode()
-  stn.children[firstChar] = child
- }
+type Stack struct {
+    data []interface{}
+}
 
- // Recursively add the rest of the suffix to the child node
- child.AddSuffix(suffix[1:])
+func NewStack() *Stack {
+    return &Stack{
+        data: make([]interface{}, 0),
+    }
+}
 
- // Set the suffix of this node to the longest common suffix of all its children
- longestCommonSuffix := ""
- for _, child := range stn.children {
-  if len(child.suffix) > len(longestCommonSuffix) {
-   longestCommonSuffix = child.suffix
-  }
- }
+func (s *Stack) Len() int {
+    return len(s.data)
+}
 
- stn.suffix = longestCommonSuffix
+func (s *Stack) Push(value interface{}) {
+    s.data = append(s.data, value)
+}
+
+func (s *Stack) Pop() interface{} {
+    back := s.data[len(s.data) - 1]
+    s.data = s.data[:len(s.data) - 1]
+    return back
 }
 
 // FindLongestRepeatingSubstring finds the longest repeating substring in a string using a suffix tree
-func FindLongestRepeatingSubstring(s string) string {
- // Create the root node of the suffix tree
- root := NewSuffixTreeNode()
+func FindLongestRepeatingSubstring(text string) string {
+	tree := BuildSuffixTree(text)
+	maxLength := 0
+	resultString := ""
 
- // Iterate over all suffixes of the string and add them to the suffix tree
- for i := 0; i < len(s); i++ {
-  suffix := s[i:]
-  root.AddSuffix(suffix)
- }
+	stack := make([]*SuffixTreeNode, 0, 10)
+	stack = append(stack, tree)
+    stackLen := len(stack)
+	for stackLen != 0 {
+        currNode := stack[len(stack) - 1]
+        stack = stack[:len(stack) - 1]
+		keys := currNode.Keys()
+		if len(keys) > 1 {
+			maxLength = max(maxLength, len(keys))
+			resultString = text[:maxLength]
+		}
+        stack = append(stack, keys...)
+        stackLen = len(stack)
+	}
 
- // Find the longest common suffix of all the children of the root node and return it as the longest repeating substring
- longestRepeatingSubstring := ""
- for _, child := range root.children {
-  if len(child.suffix) > len(longestRepeatingSubstring) {
-   longestRepeatingSubstring = child.suffix
-  }
- }
+	return resultString
+}
 
- return longestRepeatingSubstring
+func max(a, b int) int {
+    if a > b {
+        return a
+    }
+    return b
 }
 
 func main() {
 
-    //Create a string  with long repeating substring 
+	//Create a string  with long repeating substring
+	str := "abcabcab"
 
-    str := "ababababababab"
+	// Call FindLongestRepeatingSubstring function to find the longest repeating substring
+	longestSubstr := FindLongestRepeatingSubstring(str)
 
-    // Call FindLongestRepeatingSubstring function to find the longest repeating substring 
-
-    longestSubstr := FindLongestRepeatingSubstring(str)
-
-    // Print the result 
-
-    fmt.Println("The longest repeating substring is:", strings.Repeat(longestSubstr, 2))  // abab 
+	// Print the result
+	fmt.Println("The longest repeating substring is:", longestSubstr) // abc
 }
