@@ -2,111 +2,73 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"runtime"
+	"strings"
 	"time"
 )
 
-// SuffixTreeNode is a node in the suffix tree
-type SuffixTreeNode struct {
-	children map[rune]*SuffixTreeNode
+type FindStruct struct {
+	text string
+	start int
+	end int
+	maxLen *int
 }
 
-// NewSuffixTreeNode creates a new suffix tree node
-func NewSuffixTreeNode() *SuffixTreeNode {
-	return &SuffixTreeNode{
-		children: make(map[rune]*SuffixTreeNode),
+func FindLongestRepeatingSubstring(text string, numOfWorkers int) string {
+	maxLen := 1
+
+	jobs := make(chan FindStruct, numOfWorkers)
+	results := make(chan string, numOfWorkers)
+	for i := 0; i < numOfWorkers; i++ {
+		go worker(jobs, results);
 	}
+
+	for i := 0; i < len(text) - maxLen; i++ {
+		jobs <- FindStruct{text: text, start: i, end: len(text) - maxLen, maxLen: &maxLen}
+	}
+	close(jobs)
+
+	result := ""
+	for i := 0; i < numOfWorkers; i++ {
+		temp := <- results
+		if len(temp) > len(result) {
+			result = temp
+		}
+	}
+
+	return result
 }
 
-func (stn *SuffixTreeNode) Keys() []*SuffixTreeNode {
-    keys := make([]*SuffixTreeNode, 0, len(stn.children))
-    for _, key := range stn.children {
-        keys = append(keys, key)
-    }
-    return keys
-}
-
-func BuildSuffixTree(text string) *SuffixTreeNode {
-	tree := NewSuffixTreeNode()
-	for i := 0; i < len(text); i++ {
-		substring := text[i:]
-		node := tree
-		for _, letter := range substring {
-			if _, ok := node.children[letter]; !ok {
-				node.children[letter] = NewSuffixTreeNode()
+func worker(jobs <-chan FindStruct, results chan<- string) {
+	result := ""
+	for job := range jobs {
+		for i := job.start + *job.maxLen; i < job.end; i++ {
+			if strings.Contains(job.text[i:], job.text[job.start:i]) {
+				if i - job.start > len(result) {
+					*job.maxLen = i - job.start
+					result = job.text[job.start:i]
+				}
+			} else {
+				break
 			}
-			node = node.children[letter]
 		}
 	}
-	return tree
-}
-
-type Stack struct {
-    data []*SuffixTreeNode
-}
-
-func NewStack() *Stack {
-    return &Stack{
-        data: make([]*SuffixTreeNode, 0),
-    }
-}
-
-func (s *Stack) Len() int {
-    return len(s.data)
-}
-
-func (s *Stack) Push(value *SuffixTreeNode) {
-    s.data = append(s.data, value)
-}
-
-func (s *Stack) PushSlice(values []*SuffixTreeNode) {
-    s.data = append(s.data, values...)
-}
-
-func (s *Stack) Pop() *SuffixTreeNode {
-    back := s.data[len(s.data) - 1]
-    s.data = s.data[:len(s.data) - 1]
-    return back
-}
-
-// FindLongestRepeatingSubstring finds the longest repeating substring in a string using a suffix tree
-func FindLongestRepeatingSubstring(text string) string {
-	tree := BuildSuffixTree(text)
-	maxLength := 0
-	resultString := ""
-
-    stack := NewStack()
-    stack.Push(tree)
-	for stack.Len() != 0 {
-        currNode := stack.Pop()
-		keys := currNode.Keys()
-		if len(keys) > 1 {
-			maxLength = max(maxLength, len(keys))
-			resultString = text[:maxLength]
-		}
-        stack.PushSlice(keys)
-	}
-
-	return resultString
-}
-
-func max(a, b int) int {
-    if a > b {
-        return a
-    }
-    return b
+	results <- result
 }
 
 func main() {
+	data, err := os.ReadFile("data.txt")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	text := string(data)
 
-	//Create a string  with long repeating substring
-	str := "abcabcab"
+	timeStart := time.Now()
+	longestSubstr := FindLongestRepeatingSubstring(text, runtime.NumCPU())
+	elapsed := time.Since(timeStart)
 
-	// Call FindLongestRepeatingSubstring function to find the longest repeating substring
-    timeStart := time.Now()
-	longestSubstr := FindLongestRepeatingSubstring(str)
-    elapsed := time.Since(timeStart)
-
-	// Print the result
-	fmt.Println("The longest repeating substring is:", longestSubstr) // abc
-    fmt.Printf("Calculated in %s\n", elapsed)
+	fmt.Println("The longest repeating substring is:", longestSubstr)
+	fmt.Printf("Calculated in %s\n", elapsed)
 }
