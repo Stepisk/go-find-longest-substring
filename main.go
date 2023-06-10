@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -59,14 +60,18 @@ func worker(jobs <-chan FindStruct, results chan<- string) {
 }
 
 func main() {
-	data, err := os.ReadFile("data.txt")
+	filePath := flag.String("path", "data.txt", "path to the file to be processed")
+	numOfWorkers := flag.Int("num-workers", runtime.NumCPU(), "amount of workers")
+	flag.Parse()
+
+	data, err := os.ReadFile(*filePath)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	text := string(data)
 
 	timeStart := time.Now()
-	longestSubstr := FindLongestRepeatingSubstring(text, runtime.NumCPU())
+	longestSubstr := FindLongestRepeatingSubstring(text, *numOfWorkers)
 	elapsed := time.Since(timeStart)
 
 	fmt.Println("The longest repeating substring is:", longestSubstr)
